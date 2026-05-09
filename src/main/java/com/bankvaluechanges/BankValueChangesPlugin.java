@@ -56,6 +56,7 @@ public class BankValueChangesPlugin extends Plugin {
     public static Gson GSON;
     private static Long timeBand;
     private final ArrayList<PriceSnapshot> priceSnapshots = new ArrayList<>();
+    private long currentSessionStartedAt;
     public Map<Integer, Double> valueChanges = new HashMap<>();
 
     static
@@ -87,6 +88,7 @@ public class BankValueChangesPlugin extends Plugin {
 
     @Override
     protected void startUp() throws Exception {
+        currentSessionStartedAt = System.currentTimeMillis();
         GSON = gson.newBuilder().create();
         overlayManager.add(overlay);
         loadPriceData();
@@ -115,7 +117,8 @@ public class BankValueChangesPlugin extends Plugin {
         if (!priceSnapshots.isEmpty()) {
             // Compare time with latest entry, if within half an hour of latest entry, don't update
             PriceSnapshot latest = priceSnapshots.get(priceSnapshots.size() - 1);
-            if (System.currentTimeMillis() <= latest.getTimestamp() + HALF_HOUR_IN_MILLIS) {
+            if (latest.getTimestamp() >= currentSessionStartedAt
+                && System.currentTimeMillis() <= latest.getTimestamp() + HALF_HOUR_IN_MILLIS) {
                 return;
             }
         }
@@ -169,6 +172,9 @@ public class BankValueChangesPlugin extends Plugin {
 
     private void setTimeBand(BankValueChangesConfig.TimeScale scale) {
         switch(scale) {
+            case LAST_LOGOUT:
+                timeBand = null;
+                break;
             case HALF_DAY:
                 timeBand = HALF_DAY_IN_MILLIS;
                 break;
@@ -228,7 +234,18 @@ public class BankValueChangesPlugin extends Plugin {
     }
 
     private void populateDifferenceMap() {
+        valueChanges.clear();
+
         if (priceSnapshots.isEmpty()) {
+            return;
+        }
+
+        if (config.chooseTimeScale() == BankValueChangesConfig.TimeScale.LAST_LOGOUT) {
+            PriceSnapshot lastLogoutSnapshot = getLastLogoutSnapshot();
+            PriceSnapshot latest = priceSnapshots.get(priceSnapshots.size() - 1);
+            if (lastLogoutSnapshot != null && latest.getTimestamp() >= currentSessionStartedAt) {
+                calculatePriceDiffPercentage(lastLogoutSnapshot);
+            }
             return;
         }
 
@@ -248,6 +265,16 @@ public class BankValueChangesPlugin extends Plugin {
         // Didn't find any snapshots outside the given time band
         // so just give the oldest one within it
         calculatePriceDiffPercentage(priceSnapshots.get(0));
+    }
+
+    private PriceSnapshot getLastLogoutSnapshot() {
+        for (int i = priceSnapshots.size() - 1; i >= 0; i--) {
+            PriceSnapshot snapshot = priceSnapshots.get(i);
+            if (snapshot.getTimestamp() < currentSessionStartedAt) {
+                return snapshot;
+            }
+        }
+        return null;
     }
 
     private void calculatePriceDiffPercentage(PriceSnapshot oldest) {

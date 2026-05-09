@@ -13,6 +13,9 @@ the change in price your items have experienced. The plugin will show the differ
 prices to the oldest datapoint within your selected time frame. The percentage value shown is a difference
 in UNIT price of the item, not the evolution of how the entire stack's price has changed.
 
+You can also choose `LAST_LOGOUT` to compare your current bank prices with the most recent saved
+bank snapshot from the previous RuneLite session.
+
 The plugin works by creating a timestamp of your bank every time you open up the main tab, up to a maximum
 of once per hour. This data is saved in .runelite\bank-value-changes\priceHistoryData.json
 

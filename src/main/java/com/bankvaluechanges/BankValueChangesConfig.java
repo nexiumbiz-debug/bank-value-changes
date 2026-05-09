@@ -8,6 +8,7 @@ import net.runelite.client.config.ConfigItem;
 public interface BankValueChangesConfig extends Config
 {
 	enum TimeScale {
+		LAST_LOGOUT,
 		HALF_DAY,
 		DAY,
 		WEEK,
